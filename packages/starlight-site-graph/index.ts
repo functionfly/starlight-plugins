@@ -1,4 +1,5 @@
 import type { StarlightPlugin } from '@astrojs/starlight/types';
+import { fileURLToPath } from 'node:url';
 import { validateConfig, type StarlightSiteGraphConfig, starlightSiteGraphConfig } from './config';
 
 import integration from './integration';
@@ -30,10 +31,20 @@ export default function plugin(userConfig?: StarlightSiteGraphConfig): Starlight
 				// EXPL: Pass a starlight flag to the integration, if none is given, all starlight-specific features are disabled
 				addIntegration(integration({ ...parsedConfig, starlight: true }));
 				const componentOverrides: typeof config.components = {};
+				// The plugin's own assets are referenced by ABSOLUTE path.
+				//
+				// They used to be referenced by package specifier
+				// ('starlight-site-graph/styles/layers.css'), which only resolves
+				// when the package is installed under its own name. The plugin is
+				// consumed from source — as a submodule of the consuming
+				// repository — so the specifier had nothing to resolve to and the
+				// build failed on the stylesheet.
+				const asset = (relative: string): string =>
+					fileURLToPath(new URL(relative, import.meta.url));
 				const customCss: typeof config.customCss = [
-					'starlight-site-graph/styles/layers.css',
-					'starlight-site-graph/styles/common.css',
-					'starlight-site-graph/styles/starlight.css',
+					asset('./styles/layers.css'),
+					asset('./styles/common.css'),
+					asset('./styles/starlight.css'),
 				];
 
 				if (parsedConfig.overridePageSidebar) {
@@ -48,7 +59,7 @@ export default function plugin(userConfig?: StarlightSiteGraphConfig): Starlight
 							"If you do not want this plugin to override your `PageSidebar` at all, you can set `overridePageSidebar` to `false` in the configuration.",
 						)
 					} else {
-						componentOverrides.PageSidebar = 'starlight-site-graph/overrides/PageSidebar.astro';
+						componentOverrides.PageSidebar = asset('./overrides/PageSidebar.astro');
 					}
 				}
 
