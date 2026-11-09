@@ -1,0 +1,63 @@
+{
+  "name": "@functionfly/astro-mail-obfuscation",
+  "version": "1.1.0",
+  "description": "Email and phone obfuscation for Astro with AES-256-GCM protected key material, HMAC integrity verification and CSP-safe injection",
+  "license": "MIT",
+  "author": "FunctionFly",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist/**/*",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "astro",
+    "astro-integration",
+    "email-obfuscation",
+    "email-protection",
+    "spam-protection",
+    "bot-protection",
+    "security"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/functionfly/starlight-plugins.git",
+    "directory": "packages/astro-mail-obfuscation"
+  },
+  "bugs": "https://github.com/functionfly/starlight-plugins/issues",
+  "homepage": "https://github.com/functionfly/starlight-plugins/tree/main/packages/astro-mail-obfuscation#readme",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && terser dist/index.js -o dist/index.js && terser dist/scripts/client.js -o dist/scripts/client.js",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "bun test",
+    "prepublishOnly": "bun run build"
+  },
+  "peerDependencies": {
+    "astro": ">=4.0.0"
+  },
+  "dependencies": {
+    "cheerio": "^1.0.0",
+    "globby": "^16.2.3",
+    "p-limit": "^7.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.0.0",
+    "astro": "^7.2.8",
+    "terser": "^5.36.0",
+    "typescript": "^6.0.3"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

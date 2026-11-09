@@ -1,0 +1,98 @@
+export const translations = {
+  en: {
+    "starlightAnnouncement.dismiss": "Dismiss",
+    "starlightAnnouncement.learnMore": "Learn more",
+    "starlightAnnouncement.indicatorLabel": "Announcement navigation",
+    "starlightAnnouncement.goToAnnouncement": "Go to announcement {current} of {total}",
+  },
+  fr: {
+    "starlightAnnouncement.dismiss": "Fermer",
+    "starlightAnnouncement.learnMore": "En savoir plus",
+    "starlightAnnouncement.indicatorLabel": "Navigation des annonces",
+    "starlightAnnouncement.goToAnnouncement": "Aller à l'annonce {current} sur {total}",
+  },
+  es: {
+    "starlightAnnouncement.dismiss": "Cerrar",
+    "starlightAnnouncement.learnMore": "Saber más",
+    "starlightAnnouncement.indicatorLabel": "Navegación de anuncios",
+    "starlightAnnouncement.goToAnnouncement": "Ir al anuncio {current} de {total}",
+  },
+  de: {
+    "starlightAnnouncement.dismiss": "Schließen",
+    "starlightAnnouncement.learnMore": "Mehr erfahren",
+    "starlightAnnouncement.indicatorLabel": "Ankündigungs-Navigation",
+    "starlightAnnouncement.goToAnnouncement": "Gehe zur Ankündigung {current} von {total}",
+  },
+  nl: {
+    "starlightAnnouncement.dismiss": "Sluiten",
+    "starlightAnnouncement.learnMore": "Meer informatie",
+    "starlightAnnouncement.indicatorLabel": "Aankondigingsnavigatie",
+    "starlightAnnouncement.goToAnnouncement": "Ga naar aankondiging {current} van {total}",
+  },
+  "pt-BR": {
+    "starlightAnnouncement.dismiss": "Fechar",
+    "starlightAnnouncement.learnMore": "Saiba mais",
+    "starlightAnnouncement.indicatorLabel": "Navegação de anúncios",
+    "starlightAnnouncement.goToAnnouncement": "Ir para o anúncio {current} de {total}",
+  },
+  "pt-PT": {
+    "starlightAnnouncement.dismiss": "Fechar",
+    "starlightAnnouncement.learnMore": "Saber mais",
+    "starlightAnnouncement.indicatorLabel": "Navegação de anúncios",
+    "starlightAnnouncement.goToAnnouncement": "Ir para o anúncio {current} de {total}",
+  },
+  "zh-CN": {
+    "starlightAnnouncement.dismiss": "关闭",
+    "starlightAnnouncement.learnMore": "了解更多",
+    "starlightAnnouncement.indicatorLabel": "公告导航",
+    "starlightAnnouncement.goToAnnouncement": "转到第 {current} 个公告，共 {total} 个",
+  },
+  "zh-TW": {
+    "starlightAnnouncement.dismiss": "關閉",
+    "starlightAnnouncement.learnMore": "了解更多",
+    "starlightAnnouncement.indicatorLabel": "公告導航",
+    "starlightAnnouncement.goToAnnouncement": "轉到第 {current} 個公告，共 {total} 個",
+  },
+  ja: {
+    "starlightAnnouncement.dismiss": "閉じる",
+    "starlightAnnouncement.learnMore": "詳細を見る",
+    "starlightAnnouncement.indicatorLabel": "お知らせナビゲーション",
+    "starlightAnnouncement.goToAnnouncement": "お知らせ {current} / {total} に移動",
+  },
+  ko: {
+    "starlightAnnouncement.dismiss": "닫기",
+    "starlightAnnouncement.learnMore": "자세히 알아보기",
+    "starlightAnnouncement.indicatorLabel": "공지 탐색",
+    "starlightAnnouncement.goToAnnouncement": "공지 {current} / {total} (으)로 이동",
+  },
+  ar: {
+    "starlightAnnouncement.dismiss": "إغلاق",
+    "starlightAnnouncement.learnMore": "اعرف المزيد",
+    "starlightAnnouncement.indicatorLabel": "تنقل الإعلانات",
+    "starlightAnnouncement.goToAnnouncement": "انتقل إلى الإعلان {current} من {total}",
+  },
+  it: {
+    "starlightAnnouncement.dismiss": "Chiudi",
+    "starlightAnnouncement.learnMore": "Scopri di più",
+    "starlightAnnouncement.indicatorLabel": "Navigazione annunci",
+    "starlightAnnouncement.goToAnnouncement": "Vai all'annuncio {current} di {total}",
+  },
+  ru: {
+    "starlightAnnouncement.dismiss": "Закрыть",
+    "starlightAnnouncement.learnMore": "Узнать больше",
+    "starlightAnnouncement.indicatorLabel": "Навигация по объявлениям",
+    "starlightAnnouncement.goToAnnouncement": "Перейти к объявлению {current} из {total}",
+  },
+  pl: {
+    "starlightAnnouncement.dismiss": "Zamknij",
+    "starlightAnnouncement.learnMore": "Dowiedz się więcej",
+    "starlightAnnouncement.indicatorLabel": "Nawigacja ogłoszeń",
+    "starlightAnnouncement.goToAnnouncement": "Przejdź do ogłoszenia {current} z {total}",
+  },
+  tr: {
+    "starlightAnnouncement.dismiss": "Kapat",
+    "starlightAnnouncement.learnMore": "Daha fazla bilgi",
+    "starlightAnnouncement.indicatorLabel": "Duyuru gezinme",
+    "starlightAnnouncement.goToAnnouncement": "{total} duyurudan {current} numaralıya git",
+  },
+};

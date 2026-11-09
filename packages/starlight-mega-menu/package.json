@@ -1,0 +1,54 @@
+{
+  "name": "@functionfly/starlight-mega-menu",
+  "version": "1.0.0",
+  "description": "A mega-menu navigation plugin for Astro Starlight - FunctionFly enhanced version",
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./index.ts",
+    "./components/Header.astro": "./components/Header.astro",
+    "./components/MegaMenu.tsx": "./components/MegaMenu.tsx",
+    "./components/MegaMenuMobile.tsx": "./components/MegaMenuMobile.tsx",
+    "./components/mega-menu.css": "./components/mega-menu.css",
+    "./types": "./types.ts",
+    "./package.json": "./package.json"
+  },
+  "keywords": [
+    "starlight",
+    "plugin",
+    "astro",
+    "mega-menu",
+    "navigation",
+    "functionfly",
+    "withastro"
+  ],
+  "peerDependencies": {
+    "@astrojs/starlight": ">=0.34.0",
+    "@astrojs/react": ">=4.0.0",
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0"
+  },
+  "dependencies": {
+    "@radix-ui/react-navigation-menu": "^1.2.0"
+  },
+  "devDependencies": {
+    "@astrojs/react": "^6.0.2",
+    "@astrojs/starlight": "^0.41.3",
+    "astro": "^7.2.8",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "homepage": "https://github.com/functionfly/starlight-plugins/tree/main/packages/starlight-mega-menu#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/functionfly/starlight-plugins.git",
+    "directory": "packages/starlight-mega-menu"
+  },
+  "bugs": "https://github.com/functionfly/starlight-plugins/issues",
+  "publishConfig": {
+    "access": "public"
+  }
+}

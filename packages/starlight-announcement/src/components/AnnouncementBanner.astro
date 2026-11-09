@@ -1,0 +1,519 @@
+---
+import StarlightBanner from '@astrojs/starlight/components/Banner.astro';
+import { announcements, displayMode, rotateInterval, showRotateIndicator, iconSize, closeOnNavigate } from 'virtual:starlight-announcement/config';
+import { getActiveAnnouncements } from '../libs/utils';
+import AnnouncementItem from './AnnouncementItem.astro';
+
+// Strip base path from URL for pattern matching
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const fullPathname = Astro.url.pathname;
+const pathname = base && fullPathname.startsWith(base)
+  ? fullPathname.slice(base.length) || '/'
+  : fullPathname;
+let activeAnnouncements = getActiveAnnouncements(announcements, pathname);
+
+// Apply display mode filtering
+if (displayMode === 'first' && activeAnnouncements.length > 0) {
+  activeAnnouncements = activeAnnouncements.slice(0, 1);
+}
+
+const isRotateMode = displayMode === 'rotate' && activeAnnouncements.length > 1;
+const showIndicator = isRotateMode && showRotateIndicator;
+
+// Get translations for indicator with fallbacks in case t() is unavailable
+const t = Astro.locals.t ?? ((key: string) => key.split('.').pop() ?? key);
+const indicatorLabel = t('starlightAnnouncement.indicatorLabel');
+const goToAnnouncementTemplate = t('starlightAnnouncement.goToAnnouncement');
+const total = activeAnnouncements.length;
+---
+
+<!-- Inline script to hide dismissed announcements before render (prevents flash) -->
+<script is:inline data-starlight-announcement-init>
+  (function() {
+    var dismissed = [];
+    try {
+      dismissed = JSON.parse(localStorage.getItem('starlight-announcements-dismissed') || '[]');
+      if (dismissed.length) {
+        var style = document.createElement('style');
+        style.id = 'starlight-announcement-dismissed-styles';
+        style.textContent = dismissed
+          .filter(function(id) { return typeof id === 'string' && /^[\w-]+$/.test(id); })
+          .map(function(id) {
+            return '[data-announcement-id="' + id + '"] { display: none !important; }';
+          }).join('');
+        document.head.appendChild(style);
+      }
+    } catch (e) {
+      // localStorage may be unavailable
+    }
+    
+    // Restore rotation state from localStorage before render to prevent flash
+    try {
+      var state = JSON.parse(localStorage.getItem('starlight-announcements-rotation') || '{}');
+      var container = document.querySelector('[data-announcement-rotate]');
+      if (!container || !state || state.index === undefined) return;
+      
+      var items = container.querySelectorAll('.sl-announcement');
+      var visibleItems = Array.from(items).filter(function(item) {
+        var id = item.dataset.announcementId;
+        return id && dismissed.indexOf(id) === -1;
+      });
+      
+      // Don't apply rotation state if only 1 item visible
+      if (visibleItems.length <= 1) return;
+      
+      // Clamp index to valid range
+      var index = state.index;
+      if (index < 0) index = 0;
+      if (index >= visibleItems.length) index = 0;
+      
+      items.forEach(function(item, i) {
+        item.style.display = i === index ? '' : 'none';
+        item.setAttribute('aria-hidden', i === index ? 'false' : 'true');
+      });
+      
+      var dots = container.querySelectorAll('.sl-rotate-dot');
+      dots.forEach(function(dot, i) {
+        dot.setAttribute('aria-selected', i === index ? 'true' : 'false');
+        dot.classList.toggle('sl-rotate-dot--active', i === index);
+      });
+      
+      container.classList.add('sl-rotation-initialized');
+    } catch (e) {
+      // localStorage may be unavailable
+    }
+  })();
+</script>
+
+<!-- Render original Starlight banner (frontmatter-based) -->
+<StarlightBanner {...Astro.props} />
+
+<!-- Render plugin announcements -->
+{activeAnnouncements.length > 0 && (
+  <div
+    class="sl-announcements-container"
+    data-display-mode={displayMode}
+    data-announcement-rotate={isRotateMode ? '' : undefined}
+    data-rotate-interval={isRotateMode ? rotateInterval : undefined}
+  >
+    {activeAnnouncements.map((ann, i) => (
+      <AnnouncementItem announcement={ann} iconSize={iconSize} initiallyHidden={isRotateMode && i > 0} closeOnNavigate={closeOnNavigate} />
+    ))}
+    {showIndicator && (
+      <nav
+        class="sl-rotate-indicator"
+        role="tablist"
+        aria-label={indicatorLabel}
+      >
+        {activeAnnouncements.map((ann, i) => (
+          <button
+            class:list={['sl-rotate-dot', { 'sl-rotate-dot--active': i === 0 }]}
+            type="button"
+            role="tab"
+            data-index={i}
+            data-announcement-target={ann.id}
+            aria-selected={i === 0 ? 'true' : 'false'}
+            aria-controls={`sl-announcement-${ann.id}`}
+            aria-label={goToAnnouncementTemplate.replace('{current}', String(i + 1)).replace('{total}', String(total))}
+          />
+        ))}
+      </nav>
+    )}
+  </div>
+)}
+
+<script>
+  const STORAGE_KEY = 'starlight-announcements-dismissed';
+  const ROTATION_STATE_KEY = 'starlight-announcements-rotation';
+
+  // Track rotation interval and event listeners for cleanup
+  let rotationInterval: number | undefined;
+  let rotationAbortController: AbortController | undefined;
+
+  function getDismissed(): string[] {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function dismiss(id: string) {
+    const dismissed = getDismissed();
+    if (!dismissed.includes(id)) {
+      dismissed.push(id);
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(dismissed));
+      } catch {
+        // localStorage may be full or disabled
+      }
+    }
+  }
+
+  function ensureDismissedStyles() {
+    const dismissed = getDismissed();
+    if (!dismissed.length) return;
+
+    let style = document.getElementById('starlight-announcement-dismissed-styles');
+    if (!style) {
+      style = document.createElement('style');
+      style.id = 'starlight-announcement-dismissed-styles';
+      document.head.appendChild(style);
+    }
+    style.textContent = dismissed
+      .filter((id) => typeof id === 'string' && /^[\w-]+$/.test(id))
+      .map((id) => `[data-announcement-id="${id}"] { display: none !important; }`)
+      .join('');
+  }
+
+  function saveRotationState(index: number) {
+    try {
+      localStorage.setItem(ROTATION_STATE_KEY, JSON.stringify({ index }));
+    } catch {
+      // localStorage may be unavailable
+    }
+  }
+
+  function clearRotationState() {
+    try {
+      localStorage.removeItem(ROTATION_STATE_KEY);
+    } catch {
+      // localStorage may be unavailable
+    }
+  }
+
+  function getSavedRotationIndex(): number {
+    try {
+      const state = JSON.parse(localStorage.getItem(ROTATION_STATE_KEY) || '{}');
+      return typeof state.index === 'number' ? state.index : 0;
+    } catch {
+      return 0;
+    }
+  }
+
+  function initDismissals() {
+    ensureDismissedStyles();
+  }
+
+  // Use event delegation for dismiss buttons (avoids memory leaks with view transitions)
+  document.addEventListener('click', (e) => {
+    const btn = (e.target as Element).closest<HTMLElement>('[data-dismiss-announcement]');
+    if (btn) {
+      const id = btn.dataset.dismissAnnouncement;
+      if (id) {
+        dismiss(id);
+        ensureDismissedStyles();
+        initRotation();
+      }
+    }
+  });
+
+  function initRotation() {
+    // Clear any existing interval and event listeners to prevent memory leaks
+    if (rotationInterval) {
+      clearInterval(rotationInterval);
+      rotationInterval = undefined;
+    }
+    if (rotationAbortController) {
+      rotationAbortController.abort();
+    }
+    rotationAbortController = new AbortController();
+    const { signal } = rotationAbortController;
+
+    const container = document.querySelector<HTMLElement>('[data-announcement-rotate]');
+    if (!container) return;
+
+    const allItems = container.querySelectorAll<HTMLElement>('.sl-announcement');
+    const allDots = container.querySelectorAll<HTMLElement>('.sl-rotate-dot');
+    const indicator = container.querySelector<HTMLElement>('.sl-rotate-indicator');
+
+    // Filter to only visible (non-dismissed) announcements
+    const dismissed = getDismissed();
+    const visibleItems = Array.from(allItems).filter((item) => {
+      const id = item.dataset.announcementId;
+      return id && !dismissed.includes(id);
+    });
+
+    // Hide indicator and exit if 1 or fewer visible items
+    if (visibleItems.length <= 1) {
+      if (indicator) indicator.style.display = 'none';
+      visibleItems.forEach((item) => {
+        item.style.display = '';
+        item.setAttribute('aria-hidden', 'false');
+      });
+      // Clear rotation state since rotation is disabled
+      clearRotationState();
+      // Mark as initialized so CSS hands off control to JS (after inline styles are set)
+      container.classList.add('sl-rotation-initialized');
+      return;
+    }
+
+    if (indicator) indicator.style.display = '';
+
+    const rawInterval = parseInt(container.dataset.rotateInterval || '5000', 10);
+    const interval = isNaN(rawInterval) || rawInterval <= 0 ? 5000 : rawInterval;
+    let current = 0;
+    let isPaused = false;
+
+    // Check if user prefers reduced motion
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    function showItem(index: number) {
+      if (index < 0) index = visibleItems.length - 1;
+      if (index >= visibleItems.length) index = 0;
+      current = index;
+
+      saveRotationState(current);
+
+      const visibleIds = visibleItems.map((item) => item.dataset.announcementId);
+      allItems.forEach((item) => {
+        const id = item.dataset.announcementId;
+        const visibleIndex = visibleIds.indexOf(id);
+        if (visibleIndex === -1) {
+          item.style.display = 'none';
+          item.setAttribute('aria-hidden', 'true');
+        } else {
+          const isActive = visibleIndex === current;
+          item.style.display = isActive ? '' : 'none';
+          item.setAttribute('aria-hidden', isActive ? 'false' : 'true');
+        }
+      });
+
+      allDots.forEach((dot) => {
+        const targetId = dot.dataset.announcementTarget;
+        const visibleIndex = visibleIds.indexOf(targetId);
+        if (visibleIndex === -1) {
+          dot.style.display = 'none';
+        } else {
+          dot.style.display = '';
+          const isActive = visibleIndex === current;
+          dot.setAttribute('aria-selected', isActive ? 'true' : 'false');
+          dot.classList.toggle('sl-rotate-dot--active', isActive);
+        }
+      });
+    }
+
+    function next() {
+      if (!isPaused) {
+        showItem(current + 1);
+      }
+    }
+
+    function startInterval() {
+      if (rotationInterval) clearInterval(rotationInterval);
+      // Only auto-rotate if user doesn't prefer reduced motion
+      if (!prefersReducedMotion) {
+        rotationInterval = window.setInterval(next, interval);
+      }
+    }
+
+    function pauseRotation() {
+      isPaused = true;
+    }
+
+    function resumeRotation() {
+      isPaused = false;
+    }
+
+    // Pause rotation on hover (WCAG 2.2.2)
+    container.addEventListener('mouseenter', pauseRotation, { signal });
+    container.addEventListener('mouseleave', resumeRotation, { signal });
+
+    // Pause rotation on focus within (WCAG 2.2.2)
+    container.addEventListener('focusin', pauseRotation, { signal });
+    container.addEventListener('focusout', (e) => {
+      // Only resume if focus moves outside the container
+      if (!container.contains(e.relatedTarget as Node)) {
+        resumeRotation();
+      }
+    }, { signal });
+
+    // Dot click handlers using event delegation (with signal for cleanup)
+    container.addEventListener('click', (e) => {
+      const dot = (e.target as Element).closest<HTMLElement>('.sl-rotate-dot');
+      if (dot) {
+        const targetId = dot.dataset.announcementTarget;
+        const visibleIds = visibleItems.map((item) => item.dataset.announcementId);
+        const index = visibleIds.indexOf(targetId);
+        if (index !== -1) {
+          showItem(index);
+          startInterval();
+        }
+      }
+    }, { signal });
+
+    // Keyboard navigation for dots (with signal for cleanup)
+    container.addEventListener('keydown', (e) => {
+      if (!document.activeElement?.classList.contains('sl-rotate-dot')) return;
+
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        showItem(current - 1);
+        startInterval();
+        container.querySelector<HTMLElement>('.sl-rotate-dot--active')?.focus();
+      } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        showItem(current + 1);
+        startInterval();
+        container.querySelector<HTMLElement>('.sl-rotate-dot--active')?.focus();
+      } else if (e.key === 'Home') {
+        e.preventDefault();
+        showItem(0);
+        startInterval();
+        container.querySelector<HTMLElement>('.sl-rotate-dot--active')?.focus();
+      } else if (e.key === 'End') {
+        e.preventDefault();
+        showItem(visibleItems.length - 1);
+        startInterval();
+        container.querySelector<HTMLElement>('.sl-rotate-dot--active')?.focus();
+      }
+    }, { signal });
+
+    const initialIndex = getSavedRotationIndex();
+    showItem(initialIndex);
+    // Mark as initialized so CSS hands off control to JS (after inline styles are set)
+    container.classList.add('sl-rotation-initialized');
+    startInterval();
+  }
+
+  // Reset rotation state before Astro starts the view transition.
+  // astro:before-preparation fires before document.startViewTransition() is called, so the
+  // browser captures a clean old-state screenshot (item 0 visible) for the transition animation.
+  // Without this, the screenshot captures the stale rotation state, causing a flash on navigation.
+  document.addEventListener('astro:before-preparation', () => {
+    if (rotationInterval) {
+      clearInterval(rotationInterval);
+      rotationInterval = undefined;
+    }
+    if (rotationAbortController) {
+      rotationAbortController.abort();
+      rotationAbortController = undefined;
+    }
+    const container = document.querySelector<HTMLElement>('[data-announcement-rotate]');
+    if (!container) return;
+    const items = container.querySelectorAll<HTMLElement>('.sl-announcement');
+    items.forEach((item, i) => {
+      item.style.display = i === 0 ? '' : 'none';
+      item.setAttribute('aria-hidden', i === 0 ? 'false' : 'true');
+    });
+    container.classList.remove('sl-rotation-initialized');
+  });
+
+  // Clean up interval and event listeners before Astro view transitions swap content
+  document.addEventListener('astro:before-swap', () => {
+    if (rotationInterval) {
+      clearInterval(rotationInterval);
+      rotationInterval = undefined;
+    }
+    if (rotationAbortController) {
+      rotationAbortController.abort();
+      rotationAbortController = undefined;
+    }
+    // Reset announcements to initial state so cached DOM is clean on back navigation
+    const container = document.querySelector<HTMLElement>('[data-announcement-rotate]');
+    if (container) {
+      const items = container.querySelectorAll<HTMLElement>('.sl-announcement');
+      items.forEach((item, i) => {
+        item.style.display = i === 0 ? '' : 'none';
+        item.setAttribute('aria-hidden', i === 0 ? 'false' : 'true');
+      });
+      container.classList.remove('sl-rotation-initialized');
+    }
+  });
+
+  // Reset rotation state after Astro swaps in cached DOM on back/forward navigation.
+  // astro:before-swap resets the outgoing page but cannot fix the incoming cached content.
+  // astro:after-swap fires right after the swap, before the browser paints.
+  document.addEventListener('astro:after-swap', () => {
+    const container = document.querySelector<HTMLElement>('[data-announcement-rotate]');
+    if (!container) return;
+
+    const items = container.querySelectorAll<HTMLElement>('.sl-announcement');
+    items.forEach((item, i) => {
+      item.style.display = i === 0 ? '' : 'none';
+      item.setAttribute('aria-hidden', i === 0 ? 'false' : 'true');
+    });
+
+    const dots = container.querySelectorAll<HTMLElement>('.sl-rotate-dot');
+    dots.forEach((dot, i) => {
+      dot.style.display = '';
+      dot.setAttribute('aria-selected', i === 0 ? 'true' : 'false');
+      dot.classList.toggle('sl-rotate-dot--active', i === 0);
+    });
+
+    const indicator = container.querySelector<HTMLElement>('.sl-rotate-indicator');
+    if (indicator) indicator.style.display = '';
+
+    container.classList.remove('sl-rotation-initialized');
+  });
+
+  // Initialize on page load
+  initDismissals();
+  initRotation();
+
+  // Re-initialize on Astro view transitions
+  document.addEventListener('astro:page-load', () => {
+    initDismissals();
+    initRotation();
+  });
+</script>
+
+<style>
+  .sl-announcements-container {
+    display: contents;
+  }
+
+  .sl-announcements-container[data-announcement-rotate] {
+    display: block;
+  }
+
+  /* Hide non-first announcements immediately in rotate mode to prevent layout shift.
+     Only applies before JS initializes (adds .sl-rotation-initialized class). */
+  .sl-announcements-container[data-announcement-rotate]:not(.sl-rotation-initialized) :global(.sl-announcement:not(:first-of-type)) {
+    display: none;
+  }
+
+  .sl-rotate-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: color-mix(in srgb, var(--sl-color-black) 20%, transparent);
+    border-top: 1px solid color-mix(in srgb, var(--sl-color-white) 10%, transparent);
+  }
+
+  .sl-rotate-dot {
+    width: 8px;
+    height: 8px;
+    padding: 0;
+    margin: 0;
+    background: color-mix(in srgb, var(--sl-color-white) 30%, transparent);
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .sl-rotate-dot:hover {
+    background: color-mix(in srgb, var(--sl-color-white) 50%, transparent);
+    transform: scale(1.2);
+  }
+
+  .sl-rotate-dot:focus-visible {
+    outline: 2px solid var(--sl-color-accent);
+    outline-offset: 2px;
+  }
+
+  .sl-rotate-dot--active,
+  .sl-rotate-dot[aria-selected='true'] {
+    background: var(--sl-color-accent);
+    transform: scale(1.25);
+  }
+
+  .sl-rotate-dot--active:hover,
+  .sl-rotate-dot[aria-selected='true']:hover {
+    background: var(--sl-color-accent);
+  }
+</style>

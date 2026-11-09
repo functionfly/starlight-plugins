@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+
+# Build output.
+#
+# The two packages that are consumed as BUILT artifacts (`astro-loader-github-releases`
+# and `astro-mail-obfuscation`) commit their `dist/` on purpose: their consumer —
+# the FunctionFly docs site — installs them as `file:` dependencies and nothing in
+# that workspace builds them, so a checkout without `dist/` cannot build the site.
+# `bun run verify:dist` in CI fails the build when the committed output drifts from
+# the source, so the artefact cannot go stale silently.
+#
+# The three source-consumed packages (`starlight-announcement`, `starlight-mega-menu`,
+# `starlight-site-graph`) ship TypeScript/Astro sources and have no build step.
+
+# Tooling
+.DS_Store
+*.log
+.eslintcache
+.turbo/
+coverage/

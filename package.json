@@ -1,0 +1,23 @@
+{
+  "name": "@functionfly/starlight-plugins",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Astro Starlight plugins maintained by FunctionFly",
+  "license": "MIT",
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "bun run --cwd packages/astro-loader-github-releases build && bun run --cwd packages/astro-mail-obfuscation build",
+    "typecheck": "bun run --cwd packages/astro-loader-github-releases typecheck && bun run --cwd packages/astro-mail-obfuscation typecheck",
+    "check": "bun run build && bun run typecheck && bun run test",
+    "verify:dist": "git diff --exit-code -- packages/astro-loader-github-releases/dist packages/astro-mail-obfuscation/dist",
+    "clean": "rm -rf packages/astro-loader-github-releases/dist packages/astro-mail-obfuscation/dist",
+    "test": "bun test"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "bun": ">=1.4.4"
+  }
+}

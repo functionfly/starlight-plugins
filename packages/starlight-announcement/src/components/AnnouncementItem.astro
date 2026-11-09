@@ -1,0 +1,351 @@
+---
+import type { AnnouncementConfig } from '../schemas/config';
+import { resolveLocalizedString, getDefaultLocale } from '../libs/i18n';
+
+interface Props {
+  announcement: AnnouncementConfig;
+  initiallyHidden?: boolean;
+  iconSize?: number;
+  closeOnNavigate?: boolean;
+}
+
+const { announcement, initiallyHidden, iconSize = 24, closeOnNavigate = false } = Astro.props;
+const { id, content, link, variant, dismissible, svgPath, autodismiss } = announcement;
+
+// Get locales from Starlight route data
+const locale = Astro.locals.starlightRoute?.lang;
+const defaultLocale = getDefaultLocale();
+
+// Resolve localized content
+const resolvedContent = resolveLocalizedString(content, locale, defaultLocale) ?? '';
+const resolvedLinkText = link
+  ? resolveLocalizedString(link.text, locale, defaultLocale)
+  : undefined;
+
+// Get translations with fallbacks in case t() is unavailable
+const t = Astro.locals.t ?? ((key: string) => key.split('.').pop() ?? key);
+const dismissLabel = t('starlightAnnouncement.dismiss');
+const learnMoreLabel = t('starlightAnnouncement.learnMore');
+
+// Serialize autodismiss for the script
+const autodismissMs = autodismiss && autodismiss > 0 ? autodismiss * 1000 : 0;
+
+// Variant icons (Lucide-style)
+const icons = {
+  note: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>',
+  tip: '<path d="M12 2L15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2z"/>',
+  caution: '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+  danger: '<polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>',
+};
+const showIcon = svgPath !== 'none';
+const builtInIconPath = icons[variant as keyof typeof icons] ?? icons.note;
+---
+
+<div
+  id={`sl-announcement-${id}`}
+  class="sl-announcement"
+  data-announcement-id={id}
+  data-variant={variant}
+  role="status"
+  aria-live="polite"
+  style={initiallyHidden ? 'display:none' : undefined}
+  aria-hidden={initiallyHidden ? 'true' : undefined}
+>
+  <div class="sl-announcement-inner">
+    {showIcon && (
+      <svg
+        class="sl-announcement-icon"
+        xmlns="http://www.w3.org/2000/svg"
+        width={iconSize}
+        height={iconSize}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        {svgPath
+          ? <path d={svgPath} />
+          : <Fragment set:html={builtInIconPath} />
+        }
+      </svg>
+    )}
+    <div class="sl-announcement-content">
+      {/* Content is rendered as HTML to support rich formatting (links, bold, etc.).
+          This is safe because content comes from your own config file, not external input. */}
+      <span class="sl-announcement-text" set:html={resolvedContent} />
+      {link && (
+        <a href={link.href} class="sl-announcement-link">
+          <span>{resolvedLinkText || learnMoreLabel}</span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+            <polyline points="12 5 19 12 12 19"></polyline>
+          </svg>
+        </a>
+      )}
+    </div>
+  </div>
+  {dismissible && (
+    <button
+      type="button"
+      class="sl-announcement-dismiss"
+      data-dismiss-announcement={id}
+      aria-label={dismissLabel}
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2.5"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    </button>
+  )}
+</div>
+
+{autodismissMs > 0 && (
+  <script define:vars={{ id, autodismissMs, closeOnNavigate }}>
+    (function() {
+      var timer = setTimeout(function() {
+        dismiss(id);
+        var el = document.querySelector('[data-announcement-id="' + id + '"]');
+        if (el) el.style.display = 'none';
+      }, autodismissMs);
+
+      // Cancel auto-dismiss if user interacts with the announcement
+      var announcementEl = document.querySelector('[data-announcement-id="' + id + '"]');
+      if (announcementEl) {
+        announcementEl.addEventListener('mouseenter', function() {
+          clearTimeout(timer);
+        });
+        announcementEl.addEventListener('focusin', function() {
+          clearTimeout(timer);
+        });
+        announcementEl.addEventListener('click', function() {
+          clearTimeout(timer);
+        });
+      }
+
+      // Restore timer if user leaves without dismissing
+      if (announcementEl) {
+        announcementEl.addEventListener('mouseleave', function() {
+          // Don't restore if already dismissed
+          var dismissed = getDismissed();
+          if (!dismissed.includes(id)) {
+            timer = setTimeout(function() {
+              dismiss(id);
+              var el = document.querySelector('[data-announcement-id="' + id + '"]');
+              if (el) el.style.display = 'none';
+            }, autodismissMs);
+          }
+        });
+      }
+    })();
+  </script>
+)}
+
+{closeOnNavigate && (
+  <script define:vars={{ id }}>
+    (function() {
+      // Dismiss announcement when user navigates to another page
+      function dismissOnNavigate() {
+        var dismissed = getDismissed();
+        if (!dismissed.includes(id)) {
+          dismiss(id);
+          var el = document.querySelector('[data-announcement-id="' + id + '"]');
+          if (el) el.style.display = 'none';
+        }
+      }
+
+      // Listen for Astro view transitions
+      document.addEventListener('astro:before-preparation', dismissOnNavigate);
+
+      // Also handle regular link clicks
+      document.addEventListener('click', function(e) {
+        var target = e.target.closest('a');
+        if (target && target.href && !target.href.startsWith(window.location.origin + window.location.pathname)) {
+          dismissOnNavigate();
+        }
+      });
+    })();
+  </script>
+)}
+
+<script define:vars={{}}>
+  // Helper to get dismissed list from localStorage
+  function getDismissed() {
+    try {
+      var stored = localStorage.getItem('starlight-announcements-dismissed');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  // Helper to dismiss an announcement
+  function dismiss(announcementId) {
+    var dismissed = getDismissed();
+    if (!dismissed.includes(announcementId)) {
+      dismissed.push(announcementId);
+      try {
+        localStorage.setItem('starlight-announcements-dismissed', JSON.stringify(dismissed));
+      } catch {
+        // localStorage may be full or disabled
+      }
+    }
+  }
+</script>
+
+<style>
+  .sl-announcement {
+    --sl-announcement-bg: var(--sl-color-blue-low);
+    --sl-announcement-border: var(--sl-color-blue);
+    --sl-announcement-accent: var(--sl-color-blue-high);
+    --sl-announcement-icon: var(--sl-color-blue);
+    --sl-announcement-padding-y: 0.625rem;
+
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: var(--sl-announcement-padding-y) 1rem;
+    background: linear-gradient(
+      135deg,
+      var(--sl-announcement-bg) 0%,
+      color-mix(in srgb, var(--sl-announcement-bg) 85%, transparent) 100%
+    );
+    border-bottom: 1px solid color-mix(in srgb, var(--sl-announcement-border) 40%, transparent);
+    box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--sl-announcement-border) 15%, transparent);
+  }
+
+  /* Left accent bar */
+  .sl-announcement::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: var(--sl-announcement-border);
+    opacity: 0.9;
+  }
+
+  .sl-announcement[data-variant='tip'] {
+    --sl-announcement-bg: var(--sl-color-green-low);
+    --sl-announcement-border: var(--sl-color-green);
+    --sl-announcement-accent: var(--sl-color-green-high);
+    --sl-announcement-icon: var(--sl-color-green);
+  }
+
+  .sl-announcement[data-variant='caution'] {
+    --sl-announcement-bg: var(--sl-color-orange-low);
+    --sl-announcement-border: var(--sl-color-orange);
+    --sl-announcement-accent: var(--sl-color-orange-high);
+    --sl-announcement-icon: var(--sl-color-orange);
+  }
+
+  .sl-announcement[data-variant='danger'] {
+    --sl-announcement-bg: var(--sl-color-red-low);
+    --sl-announcement-border: var(--sl-color-red);
+    --sl-announcement-accent: var(--sl-color-red-high);
+    --sl-announcement-icon: var(--sl-color-red);
+  }
+
+  .sl-announcement-inner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.625rem;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .sl-announcement-icon {
+    flex-shrink: 0;
+    color: var(--sl-announcement-icon);
+    opacity: 0.9;
+  }
+
+  .sl-announcement-content {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem 0.75rem;
+    font-size: var(--sl-text-sm);
+    line-height: 1.5;
+  }
+
+  .sl-announcement-text {
+    color: var(--sl-color-white);
+  }
+
+  .sl-announcement-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.125rem 0.5rem;
+    border-radius: 1rem;
+    background: color-mix(in srgb, var(--sl-announcement-border) 25%, transparent);
+    color: var(--sl-announcement-accent);
+    font-size: var(--sl-text-xs);
+    font-weight: 600;
+    text-decoration: none;
+    letter-spacing: 0.01em;
+    transition: all 0.15s ease;
+  }
+
+  .sl-announcement-link svg {
+    transition: transform 0.15s ease;
+  }
+
+  .sl-announcement-link:hover {
+    background: color-mix(in srgb, var(--sl-announcement-border) 40%, transparent);
+    color: var(--sl-color-white);
+  }
+
+  .sl-announcement-link:hover svg {
+    transform: translateX(2px);
+  }
+
+  .sl-announcement-dismiss {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: 0.25rem;
+    color: color-mix(in srgb, var(--sl-color-white) 50%, transparent);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .sl-announcement-dismiss:hover {
+    color: var(--sl-color-white);
+    background: color-mix(in srgb, var(--sl-announcement-border) 50%, transparent);
+  }
+
+  .sl-announcement-dismiss:focus-visible {
+    outline: 2px solid var(--sl-announcement-accent);
+    outline-offset: 2px;
+  }
+
+  .sl-announcement-dismiss:active {
+    transform: scale(0.92);
+  }
+</style>

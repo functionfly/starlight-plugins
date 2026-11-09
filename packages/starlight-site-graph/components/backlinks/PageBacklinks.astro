@@ -1,0 +1,116 @@
+---
+import path from 'node:path';
+import type { PageGraphConfig } from '../../schema';
+
+import config from 'virtual:starlight-site-graph/config'
+import astroConfig from 'virtual:starlight-site-graph/astro-config';
+
+import {firstMatchingPattern, setSlashes} from "../../sitemap/browser-utils";
+import Backlinks from './Backlinks.astro';
+
+interface Props {
+	slug?: string;
+	class?: string;
+	showBacklinks?: boolean;
+	entry?: Record<string, any>;
+	trailingSlashes?: boolean;
+}
+
+let backlinksData: Partial<PageGraphConfig> = {};
+let { slug, showBacklinks, class: className, trailingSlashes } = Astro.props;
+let entry = Astro.locals.starlightRoute?.entry;
+
+// If frontmatter is explicitly passed as 'entry' (happens in a Starlight context)
+if (entry && entry.id) {
+	backlinksData = entry.data?.backlinks;
+}
+
+trailingSlashes = trailingSlashes ?? astroConfig.trailingSlash !== 'never' ?? true;
+
+// Infer slug from URL if not explicitly provided
+const slugWithBase = setSlashes((slug ? path.join(astroConfig.base, slug) : Astro.url.pathname).replaceAll("\\", "/"), true, trailingSlashes);
+
+const sitemap = config.sitemapConfig!.sitemap;
+
+let backlinks: string[] = [];
+if (sitemap) {
+	const sitemap_entry = sitemap[slugWithBase];
+	if (sitemap_entry?.backlinks)
+		backlinks = sitemap_entry.backlinks.sort((a, b) => sitemap[a]!.title.localeCompare(sitemap[b]!.title));
+}
+
+if (showBacklinks === undefined) {
+	if (backlinksData?.visible !== undefined) {
+		showBacklinks = backlinksData.visible;
+	} else {
+		showBacklinks = config.backlinksConfig!.visibilityRules ? firstMatchingPattern(slugWithBase, config.backlinksConfig!.visibilityRules, false) : true;
+	}
+}
+
+---
+
+{showBacklinks &&
+	<div class:list={className ?? ""} data-slug={slugWithBase} style={{ display: backlinks.length === 0 ? 'none' : 'block' }}>
+		<slot name="title"/>
+		<Backlinks backlinks={backlinks} sitemap={sitemap} />
+	</div>
+}
+
+<script>
+	// This code dynamically loads in backlinks when the user loads a page
+	// The sitemap is only 'complete' at build time, but the backlinks above are generated _before_ the full sitemap is known
+	//    resulting in only links from markdown content being included
+	// TODO: Alternative solution: build twice (once to get the full sitemap, then once more to place the backlinks)
+	window.addEventListener('DOMContentLoaded', async () => {
+		if (import.meta.env.PROD) {
+			let base_url = import.meta.env.BASE_URL;
+			if (!base_url.endsWith('/')) {
+				base_url += '/';
+			}
+
+			const onIdle = window.requestIdleCallback || ((cb) => setTimeout(cb, 1));
+			onIdle(async () => {
+				const sitemap = await (await fetch(base_url + 'sitegraph/sitemap.json')).json();
+				const backlinks_container = document.body.getElementsByClassName('slsg-backlinks');
+				if (backlinks_container.length > 0) {
+					const container = backlinks_container[0]!;
+					const slug = container.parentElement?.getAttribute('data-slug') ?? '';
+					const entry = sitemap[slug];
+					if (entry?.backlinks) {
+						container.replaceChildren();
+						container.parentElement!.style.display = 'block';
+						for (const link of entry.backlinks) {
+							const li = document.createElement('li');
+							li.style.setProperty('--depth', '0');
+
+							const a = document.createElement('a');
+							try {
+								const url = new URL(link, window.location.origin);
+								if (url.protocol === 'http:' || url.protocol === 'https:') {
+									a.href = link;
+								} else {
+									a.href = '#';
+								}
+							} catch {
+								a.href = '#';
+							}
+							a.style.setProperty('--depth', '0');
+							a.target = '_self';
+							a.className = 'slsg-backlink';
+
+							const span = document.createElement('span');
+							span.style.setProperty('--depth', '0');
+							span.textContent = sitemap[link]?.title ?? link;
+
+							a.appendChild(span);
+							li.appendChild(a);
+							container.appendChild(li);
+						}
+
+					}
+				}
+
+			});
+		}
+	});
+</script>

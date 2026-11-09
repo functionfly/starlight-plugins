@@ -1,0 +1,49 @@
+name: CI
+
+# Build, type-check and verify the committed build artefacts.
+#
+# The two compiled packages ship their `dist/` in the repository, because their
+# consumer installs them without a build step. That makes the committed output
+# a second source of truth, so the gate below fails when it drifts from the
+# source: `bun run build` must leave `git diff` empty.
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build and type-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          # The lockfile format is bun-version-specific: 1.4.0 writes a format
+          # the rest of the pipeline cannot read.
+          bun-version: "1.4.4"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build
+        run: bun run build
+
+      - name: Type-check
+        run: bun run typecheck
+
+      - name: Verify the committed build output matches the source
+        run: bun run verify:dist

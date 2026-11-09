@@ -1,0 +1,27 @@
+---
+import '../../styles/common.css';
+import type { GraphConfig, Sitemap } from '../../config';
+
+interface Props {
+    slug: string;
+    config: GraphConfig;
+    sitemap: Sitemap | undefined;
+	debug?: boolean;
+	trailingSlashes?: boolean;
+}
+
+
+const { config, sitemap, slug, debug = false, trailingSlashes = true } = Astro.props;
+---
+
+<div class="slsg-graph-component slsg-graph-skeleton">
+	<div class="slsg-graph-container"/>
+</div>
+<graph-component data-config={JSON.stringify(config)} data-sitemap={JSON.stringify(sitemap)} data-slug={slug} data-debug={debug} data-trailing-slashes={trailingSlashes}></graph-component>
+
+<script>
+	import { GraphComponent } from './graph-component';
+
+	customElements.define('graph-component', GraphComponent);
+</script>
+

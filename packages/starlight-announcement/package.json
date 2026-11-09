@@ -1,0 +1,50 @@
+{
+  "name": "@functionfly/starlight-announcement",
+  "version": "1.0.0",
+  "license": "MIT",
+  "description": "Enhanced announcement banners for Astro Starlight - FunctionFly version with dismissibility, variants, scheduling, and page targeting.",
+  "author": "functionfly",
+  "type": "module",
+  "exports": {
+    ".": "./index.ts",
+    "./components": "./src/components/index.ts",
+    "./components/AnnouncementBanner.astro": "./src/components/AnnouncementBanner.astro",
+    "./components/AnnouncementItem.astro": "./src/components/AnnouncementItem.astro"
+  },
+  "files": [
+    "index.ts",
+    "src/"
+  ],
+  "dependencies": {
+    "picomatch": "^4.0.2"
+  },
+  "devDependencies": {
+    "@astrojs/starlight": "^0.41.3",
+    "astro": "^7.2.8"
+  },
+  "peerDependencies": {
+    "@astrojs/starlight": ">=0.38.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "homepage": "https://github.com/functionfly/starlight-plugins/tree/main/packages/starlight-announcement#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/functionfly/starlight-plugins.git",
+    "directory": "packages/starlight-announcement"
+  },
+  "bugs": "https://github.com/functionfly/starlight-plugins/issues",
+  "keywords": [
+    "starlight",
+    "starlight-plugin",
+    "astro",
+    "announcement",
+    "banner",
+    "notification",
+    "withastro"
+  ]
+}

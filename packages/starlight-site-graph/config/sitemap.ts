@@ -1,0 +1,193 @@
+import { z } from 'astro/zod';
+import { nodeStyleSchema } from './node';
+
+const partialNodeStyleSchema = nodeStyleSchema.partial();
+const sitemapEntrySchema = z.object({
+	/**
+	 * Whether the page is external (i.e. not part of the website)
+	 * @remarks Used for links to other websites
+	 */
+	external: z.boolean(),
+	/**
+	 * Whether the page exists
+	 * @remarks Used for unresolved pages
+	 */
+	exists: z.boolean(),
+	/**
+	 * The title of the page
+	 */
+	title: z.string(),
+	/**
+	 * The links going out from the page
+	 *
+	 * @optional
+	 */
+	links: z.array(z.string()).optional(),
+	/**
+	 * The backlinks going into the page
+	 *
+	 * @optional
+	 */
+	backlinks: z.array(z.string()).optional(),
+	/**
+	 * The tags associated with the page
+	 *
+	 * @optional
+	 */
+	tags: z.array(z.string()).optional(),
+	/**
+	 * The style of the node in the graph
+	 */
+	nodeStyle: partialNodeStyleSchema.optional(),
+});
+
+export type SitemapEntry = z.infer<typeof sitemapEntrySchema>;
+const sitemapSchema = z.record(z.string(), sitemapEntrySchema);
+export type Sitemap = z.infer<typeof sitemapSchema>;
+
+const KWD_PAGE_TITLE_FALLBACK_STRATEGIES = ['linkText', 'slug'] as const;
+
+const DEFAULT_SITEMAP_CONFIG  = {
+	contentRoot: undefined as string | undefined,
+	includeExternalLinks: false,
+	sitemap: undefined as Sitemap | undefined,
+	pageTitles: {} as Record<string, string>,
+	ignoreLinksInSelectors: ['header', 'footer', 'nav', '.right-sidebar', '.site-title', '.slsg-backlinks'] as string[],
+	pageInclusionRules: ['**/*'] as string[],
+	pageTitleFallbackStrategy: 'linkText' as typeof KWD_PAGE_TITLE_FALLBACK_STRATEGIES[number],
+	linkInclusionRules: ['**/*'] as string[],
+	tagRules: {},
+	styleRules: [] as [string[], z.infer<typeof partialNodeStyleSchema>][]
+};
+
+export const globalSitemapConfig = {
+	...DEFAULT_SITEMAP_CONFIG,
+} satisfies SitemapConfig;
+
+export const globalSitemapConfigSchema = z.object({
+	/**
+	 * The root directory of the content used to generate links from for the sitemap
+	 *
+	 * @default undefined (uses the `srcDir` path defined by Astro)
+	 */
+	contentRoot: z.string().optional(),
+
+	/**
+	 * Include links going to external websites in the sitemap
+	 *
+	 * @default false
+	 */
+	includeExternalLinks: z.boolean().default(DEFAULT_SITEMAP_CONFIG.includeExternalLinks),
+
+	/**
+	 * Specify a custom sitemap to be used for the PageSidebar graph component.
+	 * If unspecified, a sitemap will be generated from the content directory (see `contentRoot`), using the `pageInclusionRules` and `linkInclusionRules`.
+	 *
+	 * @default undefined
+	 */
+	sitemap: sitemapSchema.optional(),
+
+	/**
+	 * Title of nodes for specific nodes of the graph (including external nodes). \
+	 * **Overrides** the title of the page specified in the frontmatter, but
+	 *   can be **overridden** by the `sitemap.pageTitle` frontmatter field. \
+	 * The specified link should match the full path of the page or external link.
+	 *
+	 * @example The node with endpoint "BASEPATH/intro" should be called "Main" (instead of its frontmatter title "Introduction")
+	 * { "BASEPATH/intro": "Main" }
+	 */
+	pageTitles: z.record(z.string(), z.string()).default(DEFAULT_SITEMAP_CONFIG.pageTitles),
+	/**
+	 * Determine what the name of a sitemap entry should be when no name was explicitly specified. \
+	 * This can be due to the page not having a title in the frontmatter, or the page being an external link.
+	 * - `linkText`: Use the most commonly used text associated with the link as the name of the page.
+	 * - `slug`: Use the last part of the link slug as the name of the page.
+	 */
+	pageTitleFallbackStrategy: z.enum(KWD_PAGE_TITLE_FALLBACK_STRATEGIES).default(DEFAULT_SITEMAP_CONFIG.pageTitleFallbackStrategy),
+
+	/**
+	 * Ignore links parsed from HTML content where one of the element's ancestors matches one of the listed (simple) selectors.
+	 * This is useful to ignore links common to every page, such as links in the header, footer or other components.
+	 * The selectors are based on CSS selectors, matching either a tag name, class or id.
+	 *
+	 * @tutorial The following selectors are supported:
+	 * - `TAG`: Exclude links within elements of the specified tag name, e.g. `header`, `nav`, `footer`.
+	 * - `.CLASS`: Exclude links within elements with the specified class, e.g. `.right-sidebar`, `.nav`.
+	 * - `#ID`: Exclude links within elements with the specified id, e.g. `#header`, `#footer`.
+	 * @default ["header", "footer", "nav", ".right-sidebar", ".site-title", ".slsg-backlinks"]
+	 * @example Ignore links found within code blocks
+	 * ["raw"]
+	 * @example Ignore all links with the 'external' class
+	 * [".external"]
+	 */
+	ignoreLinksInSelectors: z.array(z.string()).default([...DEFAULT_SITEMAP_CONFIG.ignoreLinksInSelectors]),
+
+	/**
+	 * Determine the inclusion of files in the sitemap based on provided ordered list of rules.
+	 * The page is included/excluded if the file's _path_, relative to the contentRoot, matches one of the rules.
+	 * When a rule starts with `!`, the file is _excluded_ if matched.
+	 * Rules are evaluated in order, the first matching rule determines the inclusion of the file.
+	 * If sitemap inclusion was specified in the page frontmatter, it will take precedence over these rules.
+	 *
+	 * @default Sitemap includes all files by default
+	 * ["**\/*"]
+	 * @example Only include Markdown files in the "api" folder:
+	 * ["\/api/**\/*.md", "!**\/*"]
+	 * @example Include all Markdoc files except those in the "secret" folder:
+	 * ["!\/secret/**\/*.mdoc", "**\/*"]
+	 */
+	pageInclusionRules: z.array(z.string()).default([...DEFAULT_SITEMAP_CONFIG.pageInclusionRules]),
+
+	/**
+	 * Determine which links are included in the sitemap for every page.
+	 * The link is included/excluded if the link's target _path_ matches one of the rules.
+	 * When a rule starts with `!`, the link is _excluded_ if matched.
+	 * Rules are evaluated in order, the first matching rule determines the inclusion of the link.
+	 * Link rules specified in the page frontmatter take precedence over these rules.
+	 *
+	 * @default Sitemap includes all links by default
+	 * ["**\/*"]
+	 * @example Only include links to endpoints in the "api" subdirectory:
+	 * ["api/**"]
+	 * @example Include all links except those to the "secret" subdirectory:
+	 * ["!secret/**", "**\/*"]
+	 * @example Remove external links to GitHub for "Edit page":
+	 * ["!https://**\/edit/**", "**\/*"]
+	 */
+	linkInclusionRules: z.array(z.string()).default([...DEFAULT_SITEMAP_CONFIG.linkInclusionRules]),
+
+	/**
+	 * Determine which pages should be associated with specific tags based on provided ordered list of rules. \
+	 * A tag is added to the page if the file's _path_ matches one of the rules. \
+	 * When a rule starts with `!`, if matched, it will _remove_ the tag from the page _(not from the file!)_, if it exists. \
+	 * Rules are evaluated in order, the first matching rule determines whether the tag is added. \
+	 * Tags generated from the rules will be combined with tags specified in the page frontmatter.
+	 *
+	 * @default {}
+	 * @example Add the "api" tag to all pages in the "api" folder:
+	 * { "api": ["api/**"] }
+	 * @example Add the "secret" tag to all pages except those in the "public" folder, will remove existing "secret" tags in the "public" folder:
+	 * { "secret": ["!public/**", "**\/*"] }
+	 */
+	tagRules: z.record(z.string(), z.array(z.string())).default({ ...DEFAULT_SITEMAP_CONFIG.tagRules }),
+
+	/**
+	 * Specify styles to be applied to pages based on provided ordered list of rules. \
+	 * The style is applied to the page if the file's _path_ matches one of the rules. \
+	 * When a rule starts with `!`, the style will not be applied if matched. \
+	 * Styles generated from these rules take precedence over all styles except those specified in the page frontmatter.
+	 *
+	 * @remarks `tagStyles` in conjunction with `tagRules` will accomplish the same thing.
+	 *
+	 * @default []
+	 * @example Make all nodes in the "api" folder take the color of `nodeColor5` (lime)
+	 * [ [["\/api/**"], { shapeColor: "nodeColor5" }] ]
+	 * @example Make the shape of all nodes except those in the "public" folder doubly as large and hollow
+	 * [ [["!\/public/**", "**\/*"], { nodeScale: 2, strokeWidth: "2", shapeColor: "backgroundColor" }] ]
+	 */
+	styleRules: z.array(
+		z.tuple([z.array(z.string()), partialNodeStyleSchema])
+	).default([...DEFAULT_SITEMAP_CONFIG.styleRules])
+});
+
+export type SitemapConfig = z.infer<typeof globalSitemapConfigSchema>;

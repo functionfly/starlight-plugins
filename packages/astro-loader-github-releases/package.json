@@ -1,0 +1,69 @@
+{
+  "name": "@functionfly/astro-loader-github-releases",
+  "version": "1.1.0",
+  "description": "GitHub releases loader for Astro \u2014 REST API, build-time and live collections, retry with backoff, rate-limit awareness and caching",
+  "author": "FunctionFly",
+  "license": "MIT",
+  "keywords": [
+    "withastro",
+    "astro-loader",
+    "content-loader",
+    "github",
+    "release",
+    "releases"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/functionfly/starlight-plugins.git",
+    "directory": "packages/astro-loader-github-releases"
+  },
+  "bugs": "https://github.com/functionfly/starlight-plugins/issues",
+  "homepage": "https://github.com/functionfly/starlight-plugins/tree/main/packages/astro-loader-github-releases#readme",
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./live": {
+      "types": "./dist/live.d.ts",
+      "import": "./dist/live.js"
+    }
+  },
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "dev": "tsdown --watch",
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "check": "publint",
+    "prepublishOnly": "bun run build",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@octokit/rest": "^22.0.0"
+  },
+  "peerDependencies": {
+    "astro": ">=4.14.0 <8.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.0.0",
+    "astro": "^7.2.8",
+    "publint": "^0.3.25",
+    "tsdown": "^0.23.7",
+    "typescript": "^6.0.3"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
